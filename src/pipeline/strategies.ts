@@ -1,4 +1,4 @@
-import type { CuratedIdea, Domain, StrategyWeights } from "@shared/types";
+import type { CuratedIdea, Domain, StrategyWeights } from "../shared/types";
 
 export interface StrategyPlan {
   fresh: number;

@@ -1,4 +1,4 @@
-import type { BriefValidated, CuratedIdea, Domain, IterationMeta } from "@shared/types";
+import type { BriefValidated, CuratedIdea, Domain, IterationMeta } from "../shared/types";
 
 export function renderReport(args: {
   brief: BriefValidated;

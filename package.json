@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Open Collider semantic collision pipeline as a desktop app, powered by Grok",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/electron/main.js",
   "scripts": {
     "dev": "vite",
     "dev:electron": "concurrently -k \"vite\" \"wait-on tcp:5173 && tsc -p electron/tsconfig.json && electron .\"",

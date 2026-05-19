@@ -1,4 +1,4 @@
-import type { BriefValidated, CuratedIdea, ScoredIdea } from "@shared/types";
+import type { BriefValidated, CuratedIdea, ScoredIdea } from "../shared/types";
 import { GrokClient, parseJsonArray } from "./grokClient";
 
 const SYSTEM = `You are an idea curator. You will be given a brief and a list of candidate ideas with scores.

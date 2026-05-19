@@ -11,7 +11,7 @@ import type {
   RawIdea,
   ReferenceText,
   ScoredIdea,
-} from "@shared/types";
+} from "../shared/types";
 
 /**
  * Filesystem layout mirrors Open Collider's schema:

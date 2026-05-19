@@ -1,4 +1,4 @@
-import type { BriefValidated, Domain, RawIdea, ReferenceText } from "@shared/types";
+import type { BriefValidated, Domain, RawIdea, ReferenceText } from "../shared/types";
 import { GrokClient, parseJsonArray } from "./grokClient";
 import { pMapLimit } from "./concurrency";
 

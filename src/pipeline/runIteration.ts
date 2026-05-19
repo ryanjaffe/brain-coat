@@ -1,4 +1,4 @@
-import type { BriefValidated, InputBank, IterationMeta, ProjectConfig, RawIdea } from "@shared/types";
+import type { BriefValidated, InputBank, IterationMeta, ProjectConfig, RawIdea } from "../shared/types";
 import { GrokClient } from "./grokClient";
 import { generateDomains } from "./domainGenerator";
 import { generateIdeas } from "./ideaEngine";

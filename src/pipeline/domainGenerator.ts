@@ -1,4 +1,4 @@
-import type { BriefValidated, Domain } from "@shared/types";
+import type { BriefValidated, Domain } from "../shared/types";
 import { GrokClient, parseJsonArray } from "./grokClient";
 
 const SYSTEM = `You are a semantic distance engine. Your task is to generate knowledge domains that are structurally as far as possible from the user's problem domain.

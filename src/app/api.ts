@@ -9,7 +9,8 @@ declare global {
   }
 }
 
-const mock: BraincoatAPI = {
+const mock: BraincoatAPI = {} as unknown as BraincoatAPI;
+Object.assign(mock, {
   key: {
     has: async () => false,
     set: async () => true,
@@ -36,7 +37,7 @@ const mock: BraincoatAPI = {
     read: async () => "",
     write: async () => true,
   },
-};
+});
 
 export const api: BraincoatAPI = (typeof window !== "undefined" && window.api) || mock;
 export const isElectron = typeof window !== "undefined" && !!window.api;
