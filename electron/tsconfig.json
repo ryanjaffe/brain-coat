@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "outDir": "../dist-electron",
+    "rootDir": "..",
+    "baseUrl": "..",
+    "paths": {
+      "@shared/*": ["src/shared/*"],
+      "@pipeline/*": ["src/pipeline/*"],
+      "@storage/*": ["src/storage/*"]
+    },
+    "noEmit": false
+  },
+  "include": ["./**/*.ts", "../src/shared/**/*.ts", "../src/pipeline/**/*.ts", "../src/storage/**/*.ts"]
+}
