@@ -19,7 +19,7 @@ export class GrokClient {
       baseURL: opts.baseURL ?? "https://api.x.ai/v1",
       dangerouslyAllowBrowser: false,
     });
-    this.model = opts.model ?? "grok-4-3";
+    this.model = opts.model ?? "grok-4.20-0309-reasoning";
   }
 
   /**

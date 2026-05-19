@@ -30,7 +30,7 @@ export interface StrategyWeights {
 
 export interface ProjectConfig {
   name: string;
-  llm_backend: "grok-4-3";
+  llm_backend: string;
   concurrency: number;
   temperatures: {
     domain: number;

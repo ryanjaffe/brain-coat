@@ -45,7 +45,7 @@ export function ProjectSetup() {
     };
     const config: ProjectConfig = {
       name,
-      llm_backend: "grok-4-3",
+      llm_backend: "grok-4.20-0309-reasoning",
       concurrency,
       temperatures: { domain: 0.95, idea: 0.92, score: 0.2, curate: 0.4 },
       strategy_weights: strategy,
