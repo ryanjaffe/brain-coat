@@ -113,6 +113,9 @@ export function ProjectSetup() {
                 </div>
               ))}
               {texts.length < 10 && <button className="btn-ghost" onClick={addText}>+ text</button>}
+              {texts.filter((t) => t.content.trim()).length === 0 && (
+                <p className="text-xs text-amber-400">At least one text must have content — idea generation requires text × domain pairs.</p>
+              )}
             </div>
           </div>
           <div>
@@ -147,7 +150,7 @@ export function ProjectSetup() {
         {step < 3 ? (
           <button className="btn" onClick={() => setStep(step + 1)} disabled={step === 1 && !name}>Next</button>
         ) : (
-          <button className="btn" onClick={save} disabled={!name || !problem}>Create project</button>
+          <button className="btn" onClick={save} disabled={!name || !problem || texts.filter((t) => t.content.trim()).length === 0}>Create project</button>
         )}
       </div>
     </div>

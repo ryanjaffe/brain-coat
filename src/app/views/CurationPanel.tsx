@@ -41,7 +41,14 @@ export function CurationPanel() {
         <div className="text-xs text-slate-500">L=Love · K=Like · T=Trash</div>
       </div>
       {curated.length === 0 ? (
-        <div className="card text-slate-400">Nothing curated yet — run a brainstorm first.</div>
+        <div className="card space-y-1 text-slate-400">
+        <div>Nothing curated yet.</div>
+        <div className="text-xs text-slate-500">
+          Common causes: no reference texts in the project (check Project Setup → reference texts have content),
+          or the model returned ideas the curator filtered out. Check the Report tab for iteration metadata
+          and run Brainstorm again after adding texts.
+        </div>
+      </div>
       ) : (
         <div className="space-y-3">
           {curated.map((c) => {

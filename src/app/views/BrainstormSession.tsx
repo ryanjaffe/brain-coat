@@ -3,8 +3,9 @@ import { api } from "../api";
 import { useStore } from "../store";
 
 export function BrainstormSession() {
-  const { currentProject, rootDir, stage, message, progress, domains, liveIdeas, applyEvent, reset, setView, setCurated, setReport } = useStore();
+  const { currentProject, rootDir, bank, stage, message, progress, domains, liveIdeas, applyEvent, reset, setView, setCurated, setReport } = useStore();
   const [running, setRunning] = useState(false);
+  const noTexts = !bank?.reference_texts?.length;
 
   useEffect(() => {
     const off = api.brainstorm.onEvent((e) => applyEvent(e));
@@ -29,13 +30,20 @@ export function BrainstormSession() {
     <div className="mx-auto max-w-6xl p-6">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Brainstorm</h1>
-        <button className="btn" onClick={start} disabled={running || !currentProject}>
+        <button className="btn" onClick={start} disabled={running || !currentProject || noTexts}>
           {running ? `${stage}…` : "Run iteration"}
         </button>
       </div>
       {progress && (
         <div className="mb-4 h-2 w-full overflow-hidden rounded bg-slate-800">
           <div className="h-full bg-brand-500 transition-all" style={{ width: `${(progress.done / Math.max(1, progress.total)) * 100}%` }} />
+        </div>
+      )}
+      {noTexts && (
+        <div className="mb-4 rounded-lg border border-amber-700/50 bg-amber-900/20 p-3 text-sm text-amber-300">
+          No reference texts found in this project. Go to{" "}
+          <button className="underline" onClick={() => setView("setup")}>Project Setup</button>{" "}
+          and add at least one text with content before running.
         </div>
       )}
       {message && <div className="mb-4 text-sm text-slate-400">{message}</div>}
