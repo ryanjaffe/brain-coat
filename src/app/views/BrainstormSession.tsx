@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { useStore } from "../store";
+import { TextGeneratorModal } from "../components/TextGeneratorModal";
 
 export function BrainstormSession() {
-  const { currentProject, rootDir, bank, stage, message, progress, domains, liveIdeas, applyEvent, reset, setView, setCurated, setReport } = useStore();
+  const { currentProject, rootDir, bank, stage, message, progress, domains, liveIdeas, applyEvent, reset, setView, setCurated, setReport, setProject } = useStore();
   const [running, setRunning] = useState(false);
+  const [showTextGen, setShowTextGen] = useState(false);
   const noTexts = !bank?.reference_texts?.length;
+  const textCount = bank?.reference_texts?.length ?? 0;
 
   useEffect(() => {
     const off = api.brainstorm.onEvent((e) => applyEvent(e));
@@ -26,26 +29,60 @@ export function BrainstormSession() {
     }
   }
 
+  async function handleTextsSaved(count: number) {
+    setShowTextGen(false);
+    // Reload the project bank so the button unblocks immediately
+    if (currentProject) {
+      const loaded = (await api.project.load({ rootDir, name: currentProject })) as any;
+      setProject(currentProject, rootDir, loaded.brief, loaded.bank, loaded.config);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-6xl p-6">
+      {showTextGen && currentProject && (
+        <TextGeneratorModal
+          projectName={currentProject}
+          rootDir={rootDir}
+          onSaved={handleTextsSaved}
+          onClose={() => setShowTextGen(false)}
+        />
+      )}
+
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Brainstorm</h1>
-        <button className="btn" onClick={start} disabled={running || !currentProject || noTexts}>
-          {running ? `${stage}…` : "Run iteration"}
-        </button>
+        <div>
+          <h1 className="text-2xl font-semibold">Brainstorm</h1>
+          {textCount > 0 && (
+            <p className="text-xs text-slate-500">{textCount} reference text{textCount !== 1 ? "s" : ""} loaded</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="btn-ghost" onClick={() => setShowTextGen(true)}>
+            ✨ {noTexts ? "Generate texts" : "Add more texts"}
+          </button>
+          <button className="btn" onClick={start} disabled={running || !currentProject || noTexts}>
+            {running ? `${stage}…` : "Run iteration"}
+          </button>
+        </div>
       </div>
+
       {progress && (
         <div className="mb-4 h-2 w-full overflow-hidden rounded bg-slate-800">
           <div className="h-full bg-brand-500 transition-all" style={{ width: `${(progress.done / Math.max(1, progress.total)) * 100}%` }} />
         </div>
       )}
+
       {noTexts && (
-        <div className="mb-4 rounded-lg border border-amber-700/50 bg-amber-900/20 p-3 text-sm text-amber-300">
-          No reference texts found in this project. Go to{" "}
-          <button className="underline" onClick={() => setView("setup")}>Project Setup</button>{" "}
-          and add at least one text with content before running.
+        <div className="mb-4 flex items-center justify-between rounded-lg border border-amber-700/50 bg-amber-900/20 p-3 text-sm text-amber-300">
+          <span>
+            No reference texts — ideas can't be generated without them.
+          </span>
+          <button className="btn ml-4 shrink-0 bg-amber-600 hover:bg-amber-500" onClick={() => setShowTextGen(true)}>
+            Generate with AI
+          </button>
         </div>
       )}
+
       {message && <div className="mb-4 text-sm text-slate-400">{message}</div>}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

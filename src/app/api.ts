@@ -29,6 +29,12 @@ Object.assign(mock, {
     run: async () => ({}),
     onEvent: () => () => {},
   },
+  texts: {
+    generate: async () => [],
+    generateFromBrief: async () => [],
+    save: async () => [],
+    onProgress: () => () => {},
+  },
   iter: {
     setFeedback: async () => true,
     planNext: async () => ({ fresh: 10, deepen: [], refresh: [] }),

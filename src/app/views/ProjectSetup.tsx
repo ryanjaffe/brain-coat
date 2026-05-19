@@ -23,6 +23,8 @@ export function ProjectSetup() {
   const [forbidden, setForbidden] = useState("");
   const [concurrency, setConcurrency] = useState(4);
   const [strategy, setStrategy] = useState({ fresh: 0.5, deepen: 0.25, refresh: 0.25 });
+  const [generating, setGenerating] = useState(false);
+  const [genProgress, setGenProgress] = useState("");
 
   function addAxis() {
     setAxes([...axes, { name: "", weight: 0.1 }]);
@@ -31,6 +33,53 @@ export function ProjectSetup() {
     if (texts.length >= 10) return;
     const id = `T${String(texts.length + 1).padStart(2, "0")}`;
     setTexts([...texts, { id, label: `Text ${texts.length + 1}`, description: "", content: "" }]);
+  }
+
+  async function generateTexts(count: number) {
+    if (!problem) return;
+    setGenerating(true);
+    setGenProgress("Generating…");
+    const off = api.texts.onProgress((msg) => setGenProgress(msg));
+    try {
+      // texts:generate needs a saved project, so we do a lightweight in-memory call
+      // by temporarily setting up an IPC call. For setup flow we call via a temp project name.
+      // Instead, call generate without saving and merge into local state.
+      const brief: BriefValidated = {
+        problem,
+        good_idea_criteria: criteria || "interesting, novel, actionable",
+        scoring_axes: axes.filter((a) => a.name.trim()),
+      };
+      // Use a temporary name — we'll discard the IPC route and go direct
+      // The generate IPC reads the project brief from disk, so we stub via a custom approach:
+      // pass the brief inline by encoding it as a fake project name is not clean.
+      // Better: just call texts:generate after creating the project if it exists,
+      // OR use an api route that takes brief inline.
+      // For setup, we expose a lighter route: texts:generateFromBrief
+      const result = (await (api.texts as any).generateFromBrief({ brief, count })) as Array<{
+        label: string;
+        description: string;
+        content: string;
+      }> | null;
+      if (result) {
+        const startIdx = texts.filter((t) => t.content.trim()).length;
+        const newTexts = result.map((t, i) => ({
+          id: `T${String(startIdx + i + 1).padStart(2, "0")}`,
+          label: t.label,
+          description: t.description,
+          content: t.content,
+        }));
+        setTexts((prev) => {
+          const existing = prev.filter((t) => t.content.trim());
+          return [...existing, ...newTexts];
+        });
+      }
+    } catch (err) {
+      setGenProgress(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      off();
+      setGenerating(false);
+      setGenProgress("");
+    }
   }
 
   async function save() {
@@ -97,7 +146,22 @@ export function ProjectSetup() {
       {step === 2 && (
         <div className="space-y-4">
           <div>
-            <label className="label">Reference texts (up to 10)</label>
+            <div className="flex items-center justify-between">
+              <label className="label">Reference texts (up to 10)</label>
+              <div className="flex items-center gap-2">
+                {genProgress && <span className="text-xs text-slate-400">{genProgress}</span>}
+                <button
+                  className="btn"
+                  disabled={!problem || generating}
+                  onClick={() => generateTexts(Math.min(5, 10 - texts.filter((t) => t.content.trim()).length))}
+                >
+                  ✨ {generating ? "Generating…" : "Generate with AI"}
+                </button>
+              </div>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              Paste your own content, or let AI generate dense reference texts from your brief.
+            </p>
             <div className="mt-2 space-y-3">
               {texts.map((t, i) => (
                 <div key={t.id} className="card space-y-2">
@@ -106,13 +170,14 @@ export function ProjectSetup() {
                     <input className="input flex-1" placeholder="Label" value={t.label} onChange={(e) => {
                       const c = [...texts]; c[i] = { ...t, label: e.target.value }; setTexts(c);
                     }} />
+                    <button className="btn-ghost text-xs text-slate-500" onClick={() => setTexts(texts.filter((_, j) => j !== i))}>✕</button>
                   </div>
                   <textarea className="input h-24" placeholder="Paste or type reference content…" value={t.content} onChange={(e) => {
                     const c = [...texts]; c[i] = { ...t, content: e.target.value }; setTexts(c);
                   }} />
                 </div>
               ))}
-              {texts.length < 10 && <button className="btn-ghost" onClick={addText}>+ text</button>}
+              {texts.length < 10 && <button className="btn-ghost" onClick={addText}>+ add blank</button>}
               {texts.filter((t) => t.content.trim()).length === 0 && (
                 <p className="text-xs text-amber-400">At least one text must have content — idea generation requires text × domain pairs.</p>
               )}

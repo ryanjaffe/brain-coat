@@ -23,6 +23,16 @@ const api = {
       return () => ipcRenderer.removeListener("brainstorm:event", handler);
     },
   },
+  texts: {
+    generate: (args: unknown) => ipcRenderer.invoke("texts:generate", args),
+    generateFromBrief: (args: unknown) => ipcRenderer.invoke("texts:generateFromBrief", args),
+    save: (args: unknown) => ipcRenderer.invoke("texts:save", args),
+    onProgress: (cb: (msg: string) => void) => {
+      const handler = (_: unknown, msg: string) => cb(msg);
+      ipcRenderer.on("texts:progress", handler);
+      return () => ipcRenderer.removeListener("texts:progress", handler);
+    },
+  },
   iter: {
     setFeedback: (args: unknown) => ipcRenderer.invoke("iter:setFeedback", args),
     planNext: (args: unknown) => ipcRenderer.invoke("iter:planNext", args),

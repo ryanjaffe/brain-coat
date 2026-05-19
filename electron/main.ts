@@ -6,6 +6,7 @@ import { ProjectStore } from "../src/storage/projectStore";
 import { runIteration } from "../src/pipeline/runIteration";
 import { renderReport } from "../src/pipeline/report";
 import { planNextIteration } from "../src/pipeline/strategies";
+import { generateReferenceTexts } from "../src/pipeline/textGenerator";
 import type {
   BriefValidated,
   CuratedIdea,
@@ -155,6 +156,76 @@ ipcMain.handle(
     store.writeReport(args.name, brainstormId, md);
 
     return { brainstormId, iter, ...result, report: md };
+  },
+);
+
+ipcMain.handle(
+  "texts:generateFromBrief",
+  async (
+    event,
+    args: { brief: BriefValidated; count?: number },
+  ) => {
+    const apiKey = loadApiKey();
+    if (!apiKey) throw new Error("No API key configured");
+    const client = new GrokClient({ apiKey });
+    const texts = await generateReferenceTexts({
+      client,
+      brief: args.brief,
+      count: args.count ?? 5,
+      onProgress: (msg) => event.sender.send("texts:progress", msg),
+    });
+    return texts;
+  },
+);
+
+ipcMain.handle(
+  "texts:generate",
+  async (
+    event,
+    args: { rootDir?: string; name: string; count?: number },
+  ) => {
+    const apiKey = loadApiKey();
+    if (!apiKey) throw new Error("No API key configured");
+    const store = getStore(args.rootDir);
+    const brief = store.readBrief(args.name);
+    if (!brief) throw new Error("Project brief not found");
+    const config = store.readConfig(args.name);
+    const client = new GrokClient({ apiKey, model: config?.llm_backend });
+    const texts = await generateReferenceTexts({
+      client,
+      brief,
+      count: args.count ?? 5,
+      onProgress: (msg) => event.sender.send("texts:progress", msg),
+    });
+    return texts;
+  },
+);
+
+ipcMain.handle(
+  "texts:save",
+  (
+    _e,
+    args: {
+      rootDir?: string;
+      name: string;
+      texts: Array<{ label: string; description: string; content: string }>;
+    },
+  ) => {
+    const store = getStore(args.rootDir);
+    const existing = store.readInputBank(args.name) ?? {
+      forbidden_topics: [],
+      reference_texts: [],
+    };
+    const startIdx = existing.reference_texts.length + 1;
+    const newTexts = args.texts.map((t, i) => ({
+      id: `T${String(startIdx + i).padStart(2, "0")}`,
+      ...t,
+    }));
+    store.writeInputBank(args.name, {
+      ...existing,
+      reference_texts: [...existing.reference_texts, ...newTexts],
+    });
+    return newTexts;
   },
 );
 
