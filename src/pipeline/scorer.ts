@@ -16,62 +16,55 @@ export interface ScoreOptions {
   batchSize?: number;
   concurrency?: number;
   temperature?: number;
+  signal?: AbortSignal;
   onProgress?: (done: number, total: number) => void;
 }
 
-/**
- * Score ideas in parallel batches against the user's scoring axes.
- */
 export async function scoreIdeas(opts: ScoreOptions): Promise<ScoredIdea[]> {
-  const { client, brief, ideas, batchSize = 20, concurrency = 3, temperature = 0.2, onProgress } = opts;
+  const { client, brief, ideas, batchSize = 20, concurrency = 3, temperature = 0.2, signal, onProgress } = opts;
   const valid = ideas.filter((i) => i.status === "done" && i.idea.trim());
 
   const batches: RawIdea[][] = [];
-  for (let i = 0; i < valid.length; i += batchSize) {
-    batches.push(valid.slice(i, i + batchSize));
-  }
+  for (let i = 0; i < valid.length; i += batchSize) batches.push(valid.slice(i, i + batchSize));
 
   const scored: ScoredIdea[] = [];
   let doneBatches = 0;
 
-  await pMapLimit(batches, concurrency, async (batch) => {
-    const user = [
-      `Brief: ${brief.problem}`,
-      `Good ideas: ${brief.good_idea_criteria}`,
-      `Axes (weights in parens):`,
-      ...brief.scoring_axes.map((a) => `- ${a.name} (${a.weight}): ${a.description ?? ""}`),
-      `Ideas to score:`,
-      ...batch.map((i) => `[${i.id}] ${i.idea}`),
-    ].join("\n");
+  await pMapLimit(
+    batches,
+    concurrency,
+    async (batch) => {
+      const user = [
+        `Brief: ${brief.problem}`,
+        `Good ideas: ${brief.good_idea_criteria}`,
+        `Axes (weights in parens):`,
+        ...brief.scoring_axes.map((a) => `- ${a.name} (${a.weight}): ${a.description ?? ""}`),
+        `Ideas to score:`,
+        ...batch.map((i) => `[${i.id}] ${i.idea}`),
+      ].join("\n");
 
-    try {
-      const text = await client.chat({ system: SYSTEM, user, temperature });
-      const parsed = parseJsonArray<{ id: string; scores: Record<string, number> }>(text);
-      const byId = new Map(parsed.map((p) => [p.id, p.scores]));
-      for (const idea of batch) {
-        const scores = byId.get(idea.id) ?? {};
-        scored.push({
-          ...idea,
-          scores,
-          composite: composite(scores, brief.scoring_axes),
-        });
+      try {
+        const text = await client.chat({ system: SYSTEM, user, temperature, signal });
+        const parsed = parseJsonArray<{ id: string; scores: Record<string, number> }>(text);
+        const byId = new Map(parsed.map((p) => [p.id, p.scores]));
+        for (const idea of batch) {
+          const scores = byId.get(idea.id) ?? {};
+          scored.push({ ...idea, scores, composite: composite(scores, brief.scoring_axes) });
+        }
+      } catch {
+        for (const idea of batch) scored.push({ ...idea, scores: {}, composite: 0 });
       }
-    } catch {
-      // On a batch failure, give every idea a zero composite but keep them.
-      for (const idea of batch) {
-        scored.push({ ...idea, scores: {}, composite: 0 });
-      }
-    }
-    doneBatches += 1;
-    onProgress?.(doneBatches * batchSize, valid.length);
-  });
+      doneBatches += 1;
+      onProgress?.(Math.min(doneBatches * batchSize, valid.length), valid.length);
+    },
+    undefined,
+    signal,
+  );
 
   return scored;
 }
 
 function composite(scores: Record<string, number>, axes: ScoringAxis[]): number {
   const totalW = axes.reduce((s, a) => s + a.weight, 0) || 1;
-  let acc = 0;
-  for (const a of axes) acc += (scores[a.name] ?? 0) * a.weight;
-  return acc / totalW;
+  return axes.reduce((acc, a) => acc + (scores[a.name] ?? 0) * a.weight, 0) / totalW;
 }

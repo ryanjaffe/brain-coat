@@ -26,12 +26,11 @@ export interface IdeaGenOptions {
   concurrency?: number;
   temperature?: number;
   promptTemplate?: string;
+  signal?: AbortSignal;
   onProgress?: (done: number, total: number, latest?: RawIdea[]) => void;
 }
 
-/**
- * For each (text × domain) collision, generate N candidate ideas in parallel.
- */
+/** For each (text × domain) pair, generate N candidate ideas in parallel. */
 export async function generateIdeas(opts: IdeaGenOptions): Promise<RawIdea[]> {
   const {
     client,
@@ -42,6 +41,7 @@ export async function generateIdeas(opts: IdeaGenOptions): Promise<RawIdea[]> {
     concurrency = 4,
     temperature = 0.92,
     promptTemplate = DEFAULT_PROMPT,
+    signal,
     onProgress,
   } = opts;
 
@@ -51,46 +51,53 @@ export async function generateIdeas(opts: IdeaGenOptions): Promise<RawIdea[]> {
   const all: RawIdea[] = [];
   let done = 0;
 
-  await pMapLimit(pairs, concurrency, async (pair) => {
-    const system = promptTemplate.replace("{N}", String(perCollision));
-    const user = [
-      `Brief: ${brief.problem}`,
-      `Good ideas: ${brief.good_idea_criteria}`,
-      `Distant domain: ${pair.domain.name}`,
-      `Active principle: ${pair.domain.active_principle}`,
-      `Bridging question: ${pair.domain.bridging_question}`,
-      `Reference text [${pair.text.id} — ${pair.text.label}]:\n${pair.text.content}`,
-      `Generate exactly ${perCollision} ideas.`,
-    ].join("\n\n");
+  await pMapLimit(
+    pairs,
+    concurrency,
+    async (pair) => {
+      const system = promptTemplate.replace("{N}", String(perCollision));
+      const user = [
+        `Brief: ${brief.problem}`,
+        `Good ideas: ${brief.good_idea_criteria}`,
+        `Distant domain: ${pair.domain.name}`,
+        `Active principle: ${pair.domain.active_principle}`,
+        `Bridging question: ${pair.domain.bridging_question}`,
+        `Reference text [${pair.text.id} — ${pair.text.label}]:\n${pair.text.content}`,
+        `Generate exactly ${perCollision} ideas.`,
+      ].join("\n\n");
 
-    const batch: RawIdea[] = [];
-    try {
-      const text = await client.chat({ system, user, temperature });
-      const ideas = parseJsonArray<string>(text);
-      ideas.forEach((idea, i) => {
+      const batch: RawIdea[] = [];
+      try {
+        const text = await client.chat({ system, user, temperature, signal });
+        const ideas = parseJsonArray<string>(text);
+        ideas.forEach((idea, i) => {
+          batch.push({
+            id: `${pair.text.id}-${pair.domain.id}-${String(i + 1).padStart(2, "0")}`,
+            domain_id: pair.domain.id,
+            text_id: pair.text.id,
+            idea,
+            status: "done",
+          });
+        });
+      } catch (err) {
+        if (signal?.aborted) throw err; // propagate abort
         batch.push({
-          id: `${pair.text.id}-${pair.domain.id}-${String(i + 1).padStart(2, "0")}`,
+          id: `${pair.text.id}-${pair.domain.id}-failed`,
           domain_id: pair.domain.id,
           text_id: pair.text.id,
-          idea,
-          status: "done",
+          idea: "",
+          status: "failed",
+          error: err instanceof Error ? err.message : String(err),
         });
-      });
-    } catch (err) {
-      batch.push({
-        id: `${pair.text.id}-${pair.domain.id}-failed`,
-        domain_id: pair.domain.id,
-        text_id: pair.text.id,
-        idea: "",
-        status: "failed",
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-    all.push(...batch);
-    done += 1;
-    onProgress?.(done, pairs.length, batch);
-    return batch;
-  });
+      }
+      all.push(...batch);
+      done += 1;
+      onProgress?.(done, pairs.length, batch);
+      return batch;
+    },
+    undefined,
+    signal,
+  );
 
   return all;
 }

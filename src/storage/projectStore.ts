@@ -2,11 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import yaml from "js-yaml";
 import type {
+  BrainstormSummary,
   BriefValidated,
   CuratedIdea,
   Domain,
   InputBank,
   IterationMeta,
+  IterationSummary,
   ProjectConfig,
   RawIdea,
   ReferenceText,
@@ -188,6 +190,63 @@ export class ProjectStore {
 
   writePrompt(name: string, file: "idea_generation.md" | "judge.md", content: string) {
     fs.writeFileSync(path.join(this.projectDir(name), "prompts", file), content);
+  }
+
+  readDomains(name: string, brainstormId: number, iter: number): Domain[] | null {
+    const p = path.join(this.iterDir(name, brainstormId, iter), "domains", "domain_bank.json");
+    if (!fs.existsSync(p)) return null;
+    return JSON.parse(fs.readFileSync(p, "utf8"));
+  }
+
+  readIterMeta(name: string, brainstormId: number, iter: number): IterationMeta | null {
+    const p = path.join(this.iterDir(name, brainstormId, iter), "iteration_meta.json");
+    if (!fs.existsSync(p)) return null;
+    return JSON.parse(fs.readFileSync(p, "utf8"));
+  }
+
+  listBrainstorms(name: string): BrainstormSummary[] {
+    const bsDir = path.join(this.projectDir(name), "brainstorms");
+    if (!fs.existsSync(bsDir)) return [];
+
+    const summaries: BrainstormSummary[] = [];
+    const bsDirs = fs.readdirSync(bsDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && d.name.startsWith("brainstorm_"))
+      .map((d) => ({ name: d.name, id: parseInt(d.name.replace("brainstorm_", ""), 10) }))
+      .filter((d) => Number.isFinite(d.id))
+      .sort((a, b) => a.id - b.id);
+
+    for (const bs of bsDirs) {
+      const iterDir = path.join(bsDir, bs.name);
+      const iterDirs = fs.readdirSync(iterDir, { withFileTypes: true })
+        .filter((d) => d.isDirectory() && d.name.startsWith("iter_"))
+        .map((d) => parseInt(d.name.replace("iter_", ""), 10))
+        .filter((n) => Number.isFinite(n))
+        .sort((a, b) => a - b);
+
+      const iterations: IterationSummary[] = [];
+      for (const iter of iterDirs) {
+        const meta = this.readIterMeta(name, bs.id, iter);
+        if (!meta) continue;
+        const curated = this.readCurated(name, bs.id, iter) ?? [];
+        iterations.push({
+          iter,
+          meta,
+          curatedCount: curated.length,
+          topIdea: curated.sort((a, b) => b.composite - a.composite)[0]?.idea,
+        });
+      }
+      summaries.push({ brainstormId: bs.id, iterations });
+    }
+    return summaries;
+  }
+
+  /** Count brainstorm sessions for display in the project list. */
+  brainstormCount(name: string): number {
+    const bsDir = path.join(this.projectDir(name), "brainstorms");
+    if (!fs.existsSync(bsDir)) return 0;
+    return fs.readdirSync(bsDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && d.name.startsWith("brainstorm_"))
+      .length;
   }
 
   nextBrainstormId(name: string): number {

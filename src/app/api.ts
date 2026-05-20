@@ -1,12 +1,9 @@
-// Thin typed wrapper around the preload-injected window.api.
-// In dev outside Electron, falls back to mock no-ops so the UI still renders.
-
+// Typed wrapper around the preload-injected window.api.
+// Falls back to no-op mock when running outside Electron (browser preview).
 import type { BraincoatAPI } from "../../electron/preload";
 
 declare global {
-  interface Window {
-    api?: BraincoatAPI;
-  }
+  interface Window { api?: BraincoatAPI; }
 }
 
 const mock: BraincoatAPI = {} as unknown as BraincoatAPI;
@@ -20,24 +17,29 @@ Object.assign(mock, {
     list: async () => [],
     defaultDir: async () => "(browser preview)",
     pickDir: async () => null,
+    metadata: async () => null,
   },
   project: {
     create: async () => "",
     load: async () => ({ brief: null, bank: null, config: null }),
+    history: async () => [],
+    loadIter: async () => ({ domains: null, curated: null, meta: null }),
   },
   brainstorm: {
     run: async () => ({}),
+    cancel: async () => true,
+    plan: async () => ({ plan: { fresh: 10, deepen: [], refresh: [] }, feedback: { loved: 0, liked: 0, trashed: 0 } }),
     onEvent: () => () => {},
+  },
+  iter: {
+    setFeedback: async () => true,
   },
   texts: {
     generate: async () => [],
     generateFromBrief: async () => [],
     save: async () => [],
+    delete: async () => true,
     onProgress: () => () => {},
-  },
-  iter: {
-    setFeedback: async () => true,
-    planNext: async () => ({ fresh: 10, deepen: [], refresh: [] }),
   },
   prompt: {
     read: async () => "",

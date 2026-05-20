@@ -86,7 +86,20 @@ export type PipelineStage =
   | "ideas"
   | "scoring"
   | "curation"
-  | "done";
+  | "done"
+  | "error";
+
+export interface BrainstormSummary {
+  brainstormId: number;
+  iterations: IterationSummary[];
+}
+
+export interface IterationSummary {
+  iter: number;
+  meta: IterationMeta;
+  curatedCount: number;
+  topIdea?: string;
+}
 
 export interface PipelineEvent {
   stage: PipelineStage;
