@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, safeStorage, dialog } from "electron";
 import path from "node:path";
 import fs from "node:fs";
+import { setMaxListeners } from "node:events";
 import { GrokClient } from "../src/pipeline/grokClient";
 import { ProjectStore } from "../src/storage/projectStore";
 import { runIteration, buildNextDomains } from "../src/pipeline/runIteration";
@@ -157,6 +158,9 @@ ipcMain.handle(
     // Abort any existing run
     activeAbort?.abort();
     const abort = new AbortController();
+    // Each concurrent worker adds one abort listener; raise the cap so Node
+    // doesn't emit a false-positive memory-leak warning.
+    setMaxListeners(100, abort.signal);
     activeAbort = abort;
 
     const client = new GrokClient({ apiKey, model: config.llm_backend });

@@ -9,6 +9,13 @@ export async function pMapLimit<I, O>(
   onResult?: (result: O, item: I, index: number) => void,
   signal?: AbortSignal,
 ): Promise<O[]> {
+  if (signal) {
+    // Each runner adds one "abort" listener — raise the cap ahead of time
+    // so Node doesn't emit a spurious MaxListenersExceededWarning.
+    const needed = Math.max(1, Math.min(limit, items.length)) + 5;
+    try { (signal as any).setMaxListeners?.(needed); } catch { /* browser compat */ }
+  }
+
   const results: O[] = new Array(items.length);
   let cursor = 0;
 
